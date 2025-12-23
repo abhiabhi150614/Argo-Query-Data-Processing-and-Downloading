@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+httpx
+pandas
+numpy
+xarray
+netCDF4
+scipy

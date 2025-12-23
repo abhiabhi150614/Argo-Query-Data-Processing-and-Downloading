@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# Env vars
+.env
+
+# Argo Data
+ar_index_global_prof.txt
+*.nc
+backend/downloads/
+
+# IDE
+.DS_Store
+.vscode/
