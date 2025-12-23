@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import MapComponent from './components/MapComponent';
 import Sidebar from './components/Sidebar';
+import DataPreview from './components/DataPreview';
 import axios from 'axios';
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
     variables: ['Temp', 'Psal']
   });
   const [loading, setLoading] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
 
   const handleSubmit = async () => {
     if (!bounds) {
@@ -22,6 +24,7 @@ function App() {
     }
 
     setLoading(true);
+    setPreviewData(null);
 
     try {
       const response = await axios.post('http://localhost:8000/api/process', {
@@ -29,8 +32,12 @@ function App() {
         params
       }, { responseType: 'blob' });
 
+      // Parse Blob for Preview
+      const text = await response.data.text();
+      setPreviewData(text);
+
       // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `argo_${params.type}_data_${Date.now()}.csv`);
@@ -56,11 +63,17 @@ function App() {
       />
       <div className="map-container">
         <MapComponent onBoundsChange={setBounds} />
+        {previewData && (
+          <DataPreview 
+            csvData={previewData} 
+            onClose={() => setPreviewData(null)} 
+          />
+        )}
         {loading && (
           <div className="loader-overlay">
             <div className="loader-content">
               <div className="loader-spinner"></div>
-              <div className="loader-text">Retrieving Argo Data...</div>
+              <div className="loader-text">Retrieving Accurate Argo Data...</div>
             </div>
           </div>
         )}
