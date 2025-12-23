@@ -6,3 +6,5 @@ numpy
 xarray
 netCDF4
 scipy
+websockets
+uvicorn[standard]

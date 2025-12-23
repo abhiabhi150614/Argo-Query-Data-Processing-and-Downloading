@@ -16,8 +16,9 @@ function App() {
   });
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState(null);
+  const [logs, setLogs] = useState([]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!bounds) {
       alert('Please select an area on the map first');
       return;
@@ -25,32 +26,49 @@ function App() {
 
     setLoading(true);
     setPreviewData(null);
+    setLogs(['Initializing connection...']);
 
-    try {
-      const response = await axios.post('http://localhost:8000/api/process', {
-        bounds,
-        params
-      }, { responseType: 'blob' });
+    // WebSocket Connection
+    const ws = new WebSocket('ws://localhost:8000/api/ws');
 
-      // Parse Blob for Preview
-      const text = await response.data.text();
-      setPreviewData(text);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ bounds, params }));
+    };
 
-      // Create download link
-      const url = window.URL.createObjectURL(response.data);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `argo_${params.type}_data_${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'log') {
+        setLogs(prev => [...prev, data.message]);
+      } 
+      else if (data.type === 'error') {
+        alert('Error: ' + data.message);
+        setLoading(false);
+        ws.close();
+      } 
+      else if (data.type === 'complete') {
+        // Download CSV with BOM
+        const blob = new Blob(["\ufeff" + data.csv], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', data.filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        
+        // Show Preview
+        setPreviewData(data.csv);
+        setLoading(false);
+        ws.close();
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket Error:', error);
       setLoading(false);
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Failed to process data: ' + (error.response?.data?.error || error.message));
-      setLoading(false);
-    }
+      alert('Connection failed.');
+    };
   };
 
   return (
@@ -73,7 +91,13 @@ function App() {
           <div className="loader-overlay">
             <div className="loader-content">
               <div className="loader-spinner"></div>
-              <div className="loader-text">Retrieving Accurate Argo Data...</div>
+              <div className="loader-text">Processing Request...</div>
+              <div className="log-terminal">
+                {logs.map((log, i) => (
+                  <div key={i} className="log-line">{log}</div>
+                ))}
+                <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+              </div>
             </div>
           </div>
         )}
