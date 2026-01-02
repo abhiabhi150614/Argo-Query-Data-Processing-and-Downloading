@@ -139,42 +139,112 @@ def process_netcdf(file_path, params):
         # Get all data variables (excluding dimensions and coordinates)
         for var_name in ds.data_vars:
             if var_name not in ['PRES'] and not var_name.endswith('_QC'):
-                vars_to_extract[var_name] = ds[var_name].values
-                qc_key = f"{var_name}_QC"
-                if qc_key in ds:
-                    flags_to_extract[qc_key] = ds[qc_key].values
+                try:
+                    var_data = ds[var_name].values
+                    if var_data.size > 0:  # Only include non-empty variables
+                        vars_to_extract[var_name] = var_data
+                        qc_key = f"{var_name}_QC"
+                        if qc_key in ds:
+                            qc_data = ds[qc_key].values
+                            if qc_data.size > 0:
+                                flags_to_extract[qc_key] = qc_data
+                except Exception:
+                    continue  # Skip problematic variables
         
         # Always include PRES
         vars_to_extract['PRES'] = pres
         if 'PRES_QC' in ds:
-            flags_to_extract['PRES_QC'] = ds['PRES_QC'].values
+            try:
+                pres_qc = ds['PRES_QC'].values
+                if pres_qc.size > 0:
+                    flags_to_extract['PRES_QC'] = pres_qc
+            except Exception:
+                pass
 
-        if pres.ndim == 2:
-            n_prof, n_levels = pres.shape
-            for p in range(n_prof):
-                for l in range(n_levels):
-                    p_val = pres[p, l]
+        # Handle different array dimensions safely
+        if pres.ndim == 1:
+            # 1D case - single profile
+            n_levels = pres.shape[0]
+            for l in range(n_levels):
+                try:
+                    p_val = pres[l]
                     if np.isnan(p_val): continue
                     
                     depth = float(p_val)
                     if params.minDepth <= depth <= params.maxDepth:
                         row = {'depth': depth}
                         for vname, vdata in vars_to_extract.items():
-                            if vdata.ndim >= 2:
-                                val = vdata[p, l] if vdata.shape[0] > p and vdata.shape[1] > l else np.nan
-                            else:
-                                val = vdata[p] if vdata.shape[0] > p else np.nan
-                            row[vname] = float(val) if not np.isnan(val) else ''
+                            try:
+                                if vdata.ndim == 1 and l < len(vdata):
+                                    val = vdata[l]
+                                elif vdata.ndim == 2 and vdata.shape[1] > l:
+                                    val = vdata[0, l]
+                                else:
+                                    val = np.nan
+                                row[vname] = float(val) if not np.isnan(val) else ''
+                            except (IndexError, ValueError):
+                                row[vname] = ''
+                        
                         for qname, qdata in flags_to_extract.items():
-                            if qdata.ndim >= 2:
-                                val = qdata[p, l] if qdata.shape[0] > p and qdata.shape[1] > l else ''
-                            else:
-                                val = qdata[p] if qdata.shape[0] > p else ''
-                            if isinstance(val, (bytes, np.bytes_)):
-                                row[qname] = val.decode('utf-8')
-                            else:
-                                row[qname] = str(val)
+                            try:
+                                if qdata.ndim == 1 and l < len(qdata):
+                                    val = qdata[l]
+                                elif qdata.ndim == 2 and qdata.shape[1] > l:
+                                    val = qdata[0, l]
+                                else:
+                                    val = ''
+                                if isinstance(val, (bytes, np.bytes_)):
+                                    row[qname] = val.decode('utf-8')
+                                else:
+                                    row[qname] = str(val) if val != '' else ''
+                            except (IndexError, ValueError, UnicodeDecodeError):
+                                row[qname] = ''
                         data.append(row)
+                except Exception:
+                    continue
+                    
+        elif pres.ndim == 2:
+            # 2D case - multiple profiles
+            n_prof, n_levels = pres.shape
+            for p in range(n_prof):
+                for l in range(n_levels):
+                    try:
+                        p_val = pres[p, l]
+                        if np.isnan(p_val): continue
+                        
+                        depth = float(p_val)
+                        if params.minDepth <= depth <= params.maxDepth:
+                            row = {'depth': depth}
+                            for vname, vdata in vars_to_extract.items():
+                                try:
+                                    if vdata.ndim >= 2 and p < vdata.shape[0] and l < vdata.shape[1]:
+                                        val = vdata[p, l]
+                                    elif vdata.ndim == 1 and p < len(vdata):
+                                        val = vdata[p]
+                                    else:
+                                        val = np.nan
+                                    row[vname] = float(val) if not np.isnan(val) else ''
+                                except (IndexError, ValueError):
+                                    row[vname] = ''
+                            
+                            for qname, qdata in flags_to_extract.items():
+                                try:
+                                    if qdata.ndim >= 2 and p < qdata.shape[0] and l < qdata.shape[1]:
+                                        val = qdata[p, l]
+                                    elif qdata.ndim == 1 and p < len(qdata):
+                                        val = qdata[p]
+                                    else:
+                                        val = ''
+                                    if isinstance(val, (bytes, np.bytes_)):
+                                        row[qname] = val.decode('utf-8')
+                                    else:
+                                        row[qname] = str(val) if val != '' else ''
+                                except (IndexError, ValueError, UnicodeDecodeError):
+                                    row[qname] = ''
+                            data.append(row)
+                    except Exception:
+                        continue
+        
         ds.close()
         return data
     except Exception as e:

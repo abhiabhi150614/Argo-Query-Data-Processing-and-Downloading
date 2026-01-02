@@ -134,9 +134,7 @@ const Sidebar = ({ bounds, params, setParams, onSubmit, onBoundsChange }) => {
 
        <div className="section">
         <div className="section-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
+          
           Depth Range (Meters)
         </div>
         <div className="grid-2">
@@ -167,9 +165,7 @@ const Sidebar = ({ bounds, params, setParams, onSubmit, onBoundsChange }) => {
       
        <div className="section">
         <div className="section-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
+          
           Search Type
         </div>
         <div className="type-selector">
