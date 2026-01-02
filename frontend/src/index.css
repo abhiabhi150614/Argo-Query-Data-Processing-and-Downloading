@@ -359,3 +359,24 @@ body {
   font-family: 'JetBrains Mono', monospace;
   color: var(--text-main);
 }
+
+/* Log Terminal */
+.log-terminal {
+  width: 400px;
+  max-width: 90vw;
+  height: 200px;
+  background: #1E1E1E;
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #00FF00;
+  text-align: left;
+  border: 1px solid #333;
+}
+
+.log-line {
+  margin-bottom: 4px;
+  word-break: break-all;
+}

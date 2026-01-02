@@ -215,7 +215,7 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_json({"type": "error", "message": "No profiles found in selected area/date."})
             return
 
-        selection = filtered[:20] # Limit for demo speed
+        selection = filtered
         all_results = []
         
         for i, profile in enumerate(selection):
