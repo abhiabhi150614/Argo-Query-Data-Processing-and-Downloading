@@ -313,6 +313,39 @@ body {
   color: var(--text-main) !important;
 }
 
+/* Customize editing handles */
+.leaflet-editing-icon {
+  width: 12px !important;
+  height: 12px !important;
+  margin-left: -6px !important;
+  margin-top: -6px !important;
+  border: 2px solid #0284C7 !important;
+  background: #FFFFFF !important;
+  border-radius: 2px !important;
+}
+
+.leaflet-editing-icon:hover {
+  background: #E0F2FE !important;
+  border-color: #0369A1 !important;
+}
+
+/* Rectangle and handle cursors */
+.leaflet-container .leaflet-editing-icon {
+  cursor: crosshair !important;
+}
+
+.leaflet-container .leaflet-interactive:hover {
+  cursor: move !important;
+}
+
+.leaflet-container .leaflet-dragging .leaflet-interactive {
+  cursor: move !important;
+}
+
+.leaflet-container .leaflet-editing-icon:hover {
+  cursor: crosshair !important;
+}
+
 /* Preview Table Styles */
 .preview-container {
   height: 300px;
@@ -379,4 +412,15 @@ body {
 .log-line {
   margin-bottom: 4px;
   word-break: break-all;
+}
+
+.info-note {
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--primary);
+  text-align: center;
 }

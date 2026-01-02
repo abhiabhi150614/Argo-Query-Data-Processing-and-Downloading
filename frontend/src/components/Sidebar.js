@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Sidebar = ({ bounds, params, setParams, onSubmit }) => {
+const Sidebar = ({ bounds, params, setParams, onSubmit, onBoundsChange }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setParams({ ...params, [name]: value });
@@ -10,8 +10,20 @@ const Sidebar = ({ bounds, params, setParams, onSubmit }) => {
     setParams({ ...params, type });
   };
 
-  const coreVars = ['TEMP', 'PSAL', 'QC Flags'];
-  const bioVars = ['CHLA', 'DOXY', 'NITRATE', 'PH', 'BBP700', 'IRRADIANCE', 'QC Flags'];
+  const handleBoundsChange = (e) => {
+    const { name, value } = e.target;
+    if (value === '') {
+      onBoundsChange({ ...bounds, [name]: '' });
+      return;
+    }
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue)) {
+      onBoundsChange({ ...bounds, [name]: numValue });
+    }
+  };
+
+  const coreVars = ['TEMP', 'PSAL', 'PRES', 'All QC Flags', 'All Available Parameters'];
+  const bioVars = ['CHLA', 'DOXY', 'NITRATE', 'PH', 'BBP700', 'IRRADIANCE', 'TEMP', 'PSAL', 'PRES', 'All QC Flags', 'All Available Parameters'];
   const currentVars = params.type === 'core' ? coreVars : bioVars;
 
   return (
@@ -36,18 +48,24 @@ const Sidebar = ({ bounds, params, setParams, onSubmit }) => {
           <div className="input-group">
             <span className="input-label">North</span>
             <input
+              type="number"
+              step="0.0001"
+              name="north"
               className="input-field"
-              value={bounds?.north?.toFixed(4) || ''}
-              readOnly
+              value={bounds?.north || ''}
+              onChange={handleBoundsChange}
               placeholder="0.0000"
             />
           </div>
           <div className="input-group">
             <span className="input-label">South</span>
             <input
+              type="number"
+              step="0.0001"
+              name="south"
               className="input-field"
-              value={bounds?.south?.toFixed(4) || ''}
-              readOnly
+              value={bounds?.south || ''}
+              onChange={handleBoundsChange}
               placeholder="0.0000"
             />
           </div>
@@ -56,18 +74,24 @@ const Sidebar = ({ bounds, params, setParams, onSubmit }) => {
           <div className="input-group">
             <span className="input-label">West</span>
             <input
+              type="number"
+              step="0.0001"
+              name="west"
               className="input-field"
-              value={bounds?.west?.toFixed(4) || ''}
-              readOnly
+              value={bounds?.west || ''}
+              onChange={handleBoundsChange}
               placeholder="0.0000"
             />
           </div>
           <div className="input-group">
             <span className="input-label">East</span>
             <input
+              type="number"
+              step="0.0001"
+              name="east"
               className="input-field"
-              value={bounds?.east?.toFixed(4) || ''}
-              readOnly
+              value={bounds?.east || ''}
+              onChange={handleBoundsChange}
               placeholder="0.0000"
             />
           </div>
@@ -169,7 +193,7 @@ const Sidebar = ({ bounds, params, setParams, onSubmit }) => {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
           </svg>
-          Parameters Included
+          Parameters Included (Complete NetCDF Export)
         </div>
         <div className="variables">
           {currentVars.map(v => (
@@ -177,6 +201,9 @@ const Sidebar = ({ bounds, params, setParams, onSubmit }) => {
               {v}
             </div>
           ))}
+        </div>
+        <div className="info-note">
+          ℹ️ All available parameters from NetCDF files will be exported
         </div>
       </div>
 
@@ -190,7 +217,7 @@ const Sidebar = ({ bounds, params, setParams, onSubmit }) => {
       </button>
 
       <div className="info-text">
-        System 100% Optimized • Automated Retrieval
+        System 100% Optimized • Cost: ₹0 • Automated Retrieval
       </div>
     </div>
   );

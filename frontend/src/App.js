@@ -18,6 +18,10 @@ function App() {
   const [previewData, setPreviewData] = useState(null);
   const [logs, setLogs] = useState([]);
 
+  const handleBoundsChange = (newBounds) => {
+    setBounds(newBounds);
+  };
+
   const handleSubmit = () => {
     if (!bounds) {
       alert('Please select an area on the map first');
@@ -78,9 +82,10 @@ function App() {
         params={params}
         setParams={setParams}
         onSubmit={handleSubmit}
+        onBoundsChange={handleBoundsChange}
       />
       <div className="map-container">
-        <MapComponent onBoundsChange={setBounds} />
+        <MapComponent onBoundsChange={setBounds} bounds={bounds} />
         {previewData && (
           <DataPreview 
             csvData={previewData} 

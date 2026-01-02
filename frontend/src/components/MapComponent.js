@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, FeatureGroup } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import L from 'leaflet';
@@ -17,8 +17,47 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-const MapComponent = ({ onBoundsChange }) => {
+const MapComponent = ({ onBoundsChange, bounds }) => {
   const mapRef = useRef();
+  const featureGroupRef = useRef();
+
+  useEffect(() => {
+    if (bounds && featureGroupRef.current && mapRef.current && 
+        typeof bounds.north === 'number' && typeof bounds.south === 'number' &&
+        typeof bounds.east === 'number' && typeof bounds.west === 'number') {
+      // Clear existing layers
+      featureGroupRef.current.clearLayers();
+      
+      // Validate bounds before creating rectangle
+      if (bounds.north > bounds.south && bounds.east > bounds.west) {
+        // Create editable rectangle from bounds
+        const rectangle = L.rectangle([
+          [bounds.south, bounds.west],
+          [bounds.north, bounds.east]
+        ], {
+          color: '#0284C7',
+          weight: 2,
+          fillOpacity: 0.2
+        });
+        
+        // Make rectangle editable
+        rectangle.editing.enable();
+        
+        // Add event listener for when rectangle is edited
+        rectangle.on('edit', (e) => {
+          const editedBounds = e.target.getBounds();
+          onBoundsChange({
+            north: editedBounds.getNorth(),
+            south: editedBounds.getSouth(),
+            east: editedBounds.getEast(),
+            west: editedBounds.getWest()
+          });
+        });
+        
+        featureGroupRef.current.addLayer(rectangle);
+      }
+    }
+  }, [bounds, onBoundsChange]);
 
   const onCreate = (e) => {
     const { layerType, layer } = e;
@@ -53,12 +92,15 @@ const MapComponent = ({ onBoundsChange }) => {
         zoom={2}
         style={{ height: '100vh', width: '100%' }}
         ref={mapRef}
+        whenCreated={(mapInstance) => {
+          mapRef.current = mapInstance;
+        }}
       >
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}"
           attribution='Tiles &copy; Esri &mdash; Sources: GEBCO, NOAA, CHS, OSU, UNH, CSUMB, National Geographic, DeLorme, NAVTEQ, and Esri'
         />
-        <FeatureGroup>
+        <FeatureGroup ref={featureGroupRef}>
           <EditControl
             position="topright"
             onCreated={onCreate}
@@ -70,6 +112,10 @@ const MapComponent = ({ onBoundsChange }) => {
               circle: false,
               marker: false,
               circlemarker: false
+            }}
+            edit={{
+              edit: true,
+              remove: true
             }}
           />
         </FeatureGroup>

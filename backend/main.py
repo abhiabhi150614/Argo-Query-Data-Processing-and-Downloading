@@ -123,7 +123,7 @@ async def download_netcdf(file_path):
         return local_path
 
 def process_netcdf(file_path, params):
-    """Extracts data from NetCDF file using xarray with High Accuracy."""
+    """Extracts ALL data from NetCDF file using xarray with High Accuracy."""
     try:
         ds = xr.open_dataset(file_path)
         data = []
@@ -132,20 +132,22 @@ def process_netcdf(file_path, params):
             return []
         pres = ds['PRES'].values
         
+        # Extract ALL variables from NetCDF file
         vars_to_extract = {}
         flags_to_extract = {}
         
-        if params.type == 'core':
-            target_vars = ['TEMP', 'PSAL']
-        else:
-            target_vars = ['CHLA', 'DOXY', 'NITRATE', 'PH_IN_SITU_TOTAL', 'BBP700', 'DOWN_IRRADIANCE412']
-
-        for v in target_vars:
-            if v in ds:
-                vars_to_extract[v] = ds[v].values
-                qc_key = f"{v}_QC"
+        # Get all data variables (excluding dimensions and coordinates)
+        for var_name in ds.data_vars:
+            if var_name not in ['PRES'] and not var_name.endswith('_QC'):
+                vars_to_extract[var_name] = ds[var_name].values
+                qc_key = f"{var_name}_QC"
                 if qc_key in ds:
                     flags_to_extract[qc_key] = ds[qc_key].values
+        
+        # Always include PRES
+        vars_to_extract['PRES'] = pres
+        if 'PRES_QC' in ds:
+            flags_to_extract['PRES_QC'] = ds['PRES_QC'].values
 
         if pres.ndim == 2:
             n_prof, n_levels = pres.shape
@@ -158,10 +160,16 @@ def process_netcdf(file_path, params):
                     if params.minDepth <= depth <= params.maxDepth:
                         row = {'depth': depth}
                         for vname, vdata in vars_to_extract.items():
-                            val = vdata[p, l]
+                            if vdata.ndim >= 2:
+                                val = vdata[p, l] if vdata.shape[0] > p and vdata.shape[1] > l else np.nan
+                            else:
+                                val = vdata[p] if vdata.shape[0] > p else np.nan
                             row[vname] = float(val) if not np.isnan(val) else ''
                         for qname, qdata in flags_to_extract.items():
-                            val = qdata[p, l]
+                            if qdata.ndim >= 2:
+                                val = qdata[p, l] if qdata.shape[0] > p and qdata.shape[1] > l else ''
+                            else:
+                                val = qdata[p] if qdata.shape[0] > p else ''
                             if isinstance(val, (bytes, np.bytes_)):
                                 row[qname] = val.decode('utf-8')
                             else:
@@ -169,7 +177,8 @@ def process_netcdf(file_path, params):
                         data.append(row)
         ds.close()
         return data
-    except Exception:
+    except Exception as e:
+        print(f"Error processing NetCDF: {e}")
         return []
 
 def extract_metadata(filename):
@@ -236,6 +245,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         'Longitude': profile['lon'],
                         'Platform': platform,
                         'Cycle': cycle,
+                        'Institution': profile.get('institution', ''),
+                        'Ocean': profile.get('ocean', ''),
                         'File': filename
                     })
                     all_results.append(row)
@@ -250,11 +261,14 @@ async def websocket_endpoint(websocket: WebSocket):
         
         df = pd.DataFrame(all_results)
         
-        # Proper Column Ordering
+        # Proper Column Ordering with enhanced metadata
         first_cols = ['Platform', 'Cycle', 'Date', 'Latitude', 'Longitude', 'depth']
-        other_cols = [c for c in df.columns if c not in first_cols and 'QC' not in c and c != 'File']
+        # Get all parameter columns (excluding QC and metadata)
+        param_cols = [c for c in df.columns if c not in first_cols and 'QC' not in c and c not in ['File', 'Institution', 'Ocean']]
         qc_cols = [c for c in df.columns if 'QC' in c]
-        final_cols = first_cols + other_cols + qc_cols + ['File']
+        meta_cols = ['Institution', 'Ocean', 'File'] if any(c in df.columns for c in ['Institution', 'Ocean', 'File']) else ['File']
+        
+        final_cols = first_cols + param_cols + qc_cols + meta_cols
         
         # Handle missing cols if any
         existing_cols = [c for c in final_cols if c in df.columns]
@@ -273,7 +287,7 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.send_json({
             "type": "complete", 
             "csv": csv_content,
-            "filename": f"argo_{params['type']}_data.csv"
+            "filename": f"argo_complete_dataset_{params['type']}_{len(selection)}_profiles.csv"
         })
         
     except WebSocketDisconnect:
